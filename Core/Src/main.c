@@ -59,6 +59,8 @@ static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 static void set_phase(uint32_t channel, PhaseRole role, uint16_t duty);
 void drive_step(uint8_t step, uint16_t duty);
+static uint8_t read_hall_state(void);
+static void commutate(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -323,21 +325,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/*
- * set_phase() -- put ONE phase (timer channel) into one of three roles.
- * This is the ONLY function that touches CCER / the compare register, so if
- * the bit logic is right here, it's right everywhere. This is the function
- * that, done wrong, can shoot-through the bridge -- so get it exactly right.
- *
- * role meanings:
- *   PH_PWM   -> high & low FET both live; high side switches at 'duty'
- *   PH_LOW   -> high & low FET both live, but compare = 0 so the low side
- *               stays on the whole period (this phase is tied to ground)
- *   PH_FLOAT -> both FETs disabled; the phase floats ('duty' is ignored)
- *
- * Key insight: PH_PWM and PH_LOW enable the SAME CCER bits and differ only
- * in the compare value. PH_FLOAT is the only role that clears the bits.
- */
+
+static const uint8_t step_for_hall[8] = {
+  [6] = 0,
+  [4] = 1,
+  [5] = 2,
+  [1] = 3,
+  [3] = 4,
+  [2] = 5,
+  [0] = 0xFF,
+  [7] = 0xFF
+};
+static uint8_t read_hall_state(void){
+    uint8_t h1 = HAL_GPIO_ReadPin(HALL_1_GPIO_Port, HALL_1_Pin);
+    uint8_t h2 = HAL_GPIO_ReadPin(HALL_2_GPIO_Port, HALL_2_Pin);
+    uint8_t h3 = HAL_GPIO_ReadPin(HALL_3_GPIO_Port, HALL_3_Pin);
+    return (h3 << 2) | (h2 << 1) | h1;
+}
 static void set_phase(uint32_t channel, PhaseRole role, uint16_t duty)
 {
   uint32_t ccer_enable_bits;
@@ -374,7 +378,7 @@ static void set_phase(uint32_t channel, PhaseRole role, uint16_t duty)
   }
   else
   {
-      compare_value = 0;      /* must be PH_LOW (we returned early for PH_FLOAT),
+      compare_value = 0;      /* must be PH_LOW (returned early for PH_FLOAT),
                                  and compare = 0 keeps the low side on all period */
   }
 
@@ -385,11 +389,6 @@ static void set_phase(uint32_t channel, PhaseRole role, uint16_t duty)
 }
 
 /*
- * drive_step() -- energize the bridge for one of the 6 commutation steps.
- * Pure "motor logic": it only assigns each phase a role and lets set_phase()
- * do the electrical work. There should be NO CCER bits or compares in here.
- *
- * Step table (our rotating sequence; A=CH1, B=CH2, C=CH3):
  *   step | PWM | LOW | FLOAT
  *    0   |  A  |  B  |  C
  *    1   |  A  |  C  |  B
@@ -447,7 +446,23 @@ void drive_step(uint8_t step, uint16_t duty)
   }
     
 
+static void commutate(void){
+  uint8_t state = read_hall_state();
+  uint8_t hold = step_for_hall[state];
+  uint8_t step;
 
+  if (hold == 0xFF){
+    drive_step(0xFF, 0);
+    return;
+  }
+
+  step = (hold + COMMUTATION_OFFSET) % 6;
+
+  drive_step(step, RUN_DUTY);
+
+  hall_state = state;
+
+}
 
 /* USER CODE END 4 */
 
