@@ -1,0 +1,24 @@
+# Build output
+/build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# Claude Code local config
+/.claude/
+
+# Unused CMSIS vendor packs (Makefile build only needs Core + Device)
+/Drivers/CMSIS/DSP/
+/Drivers/CMSIS/NN/
+/Drivers/CMSIS/RTOS/
+/Drivers/CMSIS/RTOS2/
+/Drivers/CMSIS/docs/
+
+# Editor/OS cruft
+.vscode/
+*.swp
+.DS_Store
