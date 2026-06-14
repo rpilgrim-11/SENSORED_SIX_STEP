@@ -118,6 +118,16 @@ int main(void)
   setvbuf(stdout, NULL, _IONBF, 0); /* unbuffered: chars come out immediately */
   printf("Hall debug ready - spin the motor by hand...\r\n");
 
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin  = HALL_1_Pin | HALL_2_Pin | HALL_3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* Arm the NVIC for the shared EXTI9_5 vector */
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
@@ -125,6 +135,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
+  commutate();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -135,26 +146,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
-
-    for (uint8_t step = 0; step < 6; step++)
-  {
-      drive_step(step, 400);        /* ~7.5% duty: enough to align, gentle */
-      HAL_Delay(1500);              /* let the rotor settle */
-
-      uint8_t h1 = HAL_GPIO_ReadPin(HALL_1_GPIO_Port, HALL_1_Pin);
-      uint8_t h2 = HAL_GPIO_ReadPin(HALL_2_GPIO_Port, HALL_2_Pin);
-      uint8_t h3 = HAL_GPIO_ReadPin(HALL_3_GPIO_Port, HALL_3_Pin);
-      hall_state = (h3 << 2) | (h2 << 1) | h1;
-
-      printf("step %u -> hall_state %u\r\n", step, hall_state);
-  }
-  drive_step(0xFF, 0);              /* hits your default: case -> all float */
-  printf("calibration done\r\n");
-  while (1) { HAL_Delay(100); }     /* park here */
-
-
-  HAL_Delay(1);
+  printf("hall_state %u\r\n", hall_state);
+  HAL_Delay(200);
 
   }
   /* USER CODE END 3 */
@@ -462,6 +455,12 @@ static void commutate(void){
 
   hall_state = state;
 
+}
+
+void  HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+  if (GPIO_Pin == GPIO_PIN_6 || GPIO_Pin == GPIO_PIN_7 || GPIO_Pin == GPIO_PIN_8){
+    commutate();
+  }
 }
 
 /* USER CODE END 4 */
