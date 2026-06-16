@@ -33,9 +33,9 @@ typedef enum { PH_FLOAT, PH_LOW, PH_PWM } PhaseRole;
 /* USER CODE BEGIN PD */
 /* Steps to lead the rotor by; this also sets the direction of rotation.
    Try 1 or 2 for one direction, 4 or 5 for the other. 0 and 3 won't spin. */
-#define COMMUTATION_OFFSET 1
+#define COMMUTATION_OFFSET 4
 /* PWM compare used while running, out of Period = 5312 (~9.4%). Start gentle. */
-#define RUN_DUTY 500
+#define RUN_DUTY 700
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -116,7 +116,7 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   setvbuf(stdout, NULL, _IONBF, 0); /* unbuffered: chars come out immediately */
-  printf("Hall debug ready - spin the motor by hand...\r\n");
+  // printf("Hall debug ready - spin the motor by hand...\r\n");
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   GPIO_InitStruct.Pin  = HALL_1_Pin | HALL_2_Pin | HALL_3_Pin;
@@ -135,6 +135,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
 
+  
   commutate();
   /* USER CODE END 2 */
 
@@ -146,9 +147,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-  printf("hall_state %u\r\n", hall_state);
-  HAL_Delay(200);
-
+  
   }
   /* USER CODE END 3 */
 }
